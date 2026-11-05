@@ -18,7 +18,6 @@ venv/
 .env.*
 !.env.example
 knowledge/.env
-!.env.example
 
 # ===== 运行产物 =====
 knowledge/temp_data/
