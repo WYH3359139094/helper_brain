@@ -1,0 +1,38 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# ===== 虚拟环境 =====
+.venv/
+venv/
+
+# ===== IDE =====
+.idea/
+.vscode/
+
+# ===== 密钥与本地配置（务必不要提交）=====
+.env
+.env.*
+!.env.example
+knowledge/.env
+!.env.example
+
+# ===== 运行产物 =====
+knowledge/temp_data/
+knowledge/blobs/
+blobs/
+.mineru-service.lock
+*.log
+logs/
+
+# ===== 评测中间产物（cache/、results/ 已在 knowledge/eval/.gitignore 中忽略）=====
+knowledge/eval/cache/
+knowledge/eval/results/
+
+# ===== 系统文件 =====
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,5 @@
+# 评测中间产物，不入版本库
+cache/
+results/
+# 快照可重建（由 export_chunks.py 生成），按需决定是否提交
+# data/chunks_snapshot.jsonl

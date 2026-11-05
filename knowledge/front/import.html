@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件导入服务</title>
+    <style>
+        :root{
+            --text:#1f2329;
+            --text-2:#4a4f5c;
+            --muted:#8d93a1;
+            --line:#ececf1;
+            --line-soft:#f3f4f9;
+        }
+        *{box-sizing:border-box}
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', Arial, sans-serif;
+            margin: 0;
+            padding: 76px 20px 40px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            background: #ffffff;
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* 顶栏：右上角跳转按钮 */
+        .topbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            background: #ffffff;
+            border-bottom: 1px solid var(--line);
+            z-index: 10;
+        }
+        .topbar-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            height: 32px;
+            padding: 0 13px;
+            border: 1px solid #e2e5ee;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #2b303a;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            box-shadow: 0 1px 2px rgba(19, 26, 45, .04);
+            transition: border-color .15s, box-shadow .15s, background .15s;
+        }
+        .topbar-link:hover {
+            border-color: #cfd6e6;
+            background: #fdfdff;
+            box-shadow: 0 2px 6px rgba(19, 26, 45, .08);
+        }
+        .topbar-link svg { width: 14px; height: 14px; color: #4a5262; }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            box-shadow: 0 8px 30px rgba(19, 26, 45, .06);
+            color: var(--text-2);
+            align-self: flex-start;
+        }
+
+        h1 {
+            color: var(--text);
+            text-align: center;
+            margin: 0 0 26px;
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: .3px;
+        }
+
+        .upload-area {
+            border: 2px dashed #d8dce8;
+            background: #fafbfd;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color .2s, background .2s;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: #9aa6c4;
+            background: #f5f7fc;
+        }
+
+        .upload-icon {
+            font-size: 44px;
+            margin-bottom: 14px;
+        }
+
+        .upload-text {
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-list {
+            margin-top: 26px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .file-item {
+            background: #ffffff;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 18px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            transition: box-shadow .2s ease, border-color .2s ease;
+        }
+
+        .file-item:hover {
+            box-shadow: 0 6px 18px rgba(19, 26, 45, .07);
+            border-color: #dfe3ee;
+        }
+
+        .file-info {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            margin-right: 20px;
+            min-width: 0;
+        }
+
+        .file-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 15px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-size {
+            font-size: 12.5px;
+            color: var(--muted);
+            flex: 0 0 auto;
+        }
+
+        .status-badge {
+            padding: 5px 13px;
+            border-radius: 20px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #ffffff;
+            min-width: 76px;
+            text-align: center;
+            letter-spacing: .3px;
+            flex: 0 0 auto;
+        }
+
+        .status-uploading {
+            background: #e0912f;
+        }
+
+        .status-processing {
+            background: #3b6fd6;
+        }
+
+        .status-completed {
+            background: #2f9e63;
+        }
+
+        .status-error {
+            background: #d84a4a;
+        }
+
+        .progress-wrapper {
+            margin-top: 6px;
+            display: none;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
+            background-color: #eef0f6;
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            border-radius: 3px;
+            transition: width .4s cubic-bezier(.4, 0, .2, 1), background-color .4s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.45) 50%, rgba(255,255,255,0) 100%);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 6px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .log-details {
+            margin-top: 14px;
+            font-size: 13px;
+            color: var(--text-2);
+            background: #fafbfd;
+            border-radius: 12px;
+            padding: 14px 16px;
+            border: 1px solid var(--line-soft);
+        }
+
+        .log-details summary {
+            cursor: pointer;
+            user-select: none;
+            color: var(--text);
+            outline: none;
+            display: flex;
+            align-items: center;
+            font-weight: 600;
+            font-size: 13px;
+            letter-spacing: .2px;
+            padding-bottom: 9px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .log-details[open] summary {
+            margin-bottom: 4px;
+        }
+
+        .log-details summary:hover {
+            color: #3b5bdb;
+        }
+
+        .log-details summary::marker {
+            color: #b3b8c4;
+        }
+
+        .log-list {
+            margin: 8px 0 0 0;
+            padding: 0 0 0 20px;
+            list-style: none;
+            max-height: 200px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .log-list::before {
+            content: "";
+            position: absolute;
+            left: 7px;
+            top: 8px;
+            bottom: 8px;
+            width: 2px;
+            background: #e6e9f1;
+            border-radius: 1px;
+        }
+
+        .log-list::-webkit-scrollbar { width: 6px; }
+        .log-list::-webkit-scrollbar-track { background: #f2f3f7; border-radius: 3px; }
+        .log-list::-webkit-scrollbar-thumb { background: #dcdfe8; border-radius: 3px; }
+        .log-list::-webkit-scrollbar-thumb:hover { background: #cfd4e0; }
+
+        .log-list li {
+            margin: 0;
+            padding: 9px 12px;
+            line-height: 1.5;
+            display: flex;
+            align-items: center;
+            position: relative;
+            border-radius: 8px;
+        }
+
+        .log-list li:hover {
+            background: #f3f5fa;
+        }
+
+        .log-list li::before {
+            content: "";
+            position: absolute;
+            left: -17px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid #dfe3ec;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px #fafbfd;
+            z-index: 1;
+        }
+
+        .log-done {
+            color: #35714f;
+        }
+
+        .log-done::before {
+            background: #2f9e63 !important;
+            border-color: #2f9e63 !important;
+            box-shadow: 0 0 0 3px #fafbfd !important;
+        }
+
+        .log-duration {
+            margin-left: auto;
+            font-size: 12px;
+            color: #3b5bdb;
+            background: #eef2ff;
+            border: 1px solid #e0e6fd;
+            padding: 1px 11px;
+            border-radius: 12px;
+            white-space: nowrap;
+            font-weight: 600;
+            letter-spacing: .3px;
+            font-variant-numeric: tabular-nums;
+            flex-shrink: 0;
+        }
+
+        .log-running {
+            color: #2563eb;
+        }
+
+        .log-running::before {
+            background: #3b6fd6 !important;
+            border-color: #3b6fd6 !important;
+            box-shadow: 0 0 0 3px #fafbfd !important;
+            animation: pulseNode 2s infinite !important;
+        }
+
+        @keyframes pulseNode {
+            0%, 100% { box-shadow: 0 0 0 3px #fafbfd, 0 0 0 4px rgba(59,111,214,.15); }
+            50% { box-shadow: 0 0 0 3px #fafbfd, 0 0 0 6px rgba(59,111,214,.22); }
+        }
+
+        @media (max-width: 640px) {
+            body { padding: 72px 14px 30px; }
+            .container { padding: 20px; }
+            .upload-area { padding: 28px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <a class="topbar-link" href="http://127.0.0.1:8001/front/chat.html" id="toChat" title="前往对话页面（8001）">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4L4 21l1.1-3.7A8.4 8.4 0 1 1 21 11.5Z"/></svg>
+        对话页面
+    </a>
+</div>
+
+<div class="container">
+    <h1>📄 知识库文件导入</h1>
+
+    <div class="upload-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">☁️</div>
+        <div class="upload-text">点击或拖拽文件到此处 (PDF/MD)</div>
+        <input type="file" id="fileInput" class="file-input"  accept=".pdf,.md">
+    </div>
+
+    <div id="fileList" class="file-list">
+    </div>
+</div>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+
+    // 模拟后端API地址
+    const API_BASE = 'http://127.0.0.1:8000';
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#38bdf8';
+        dropZone.style.background = 'rgba(56, 189, 248, 0.1)';
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '';
+        dropZone.style.background = '';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '';
+        dropZone.style.background = '';
+        handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+        Array.from(files).forEach(uploadFile);
+    }
+
+    function updateProgressUI(wrapper, percentage) {
+        const bar = wrapper.querySelector('.progress-bar');
+        const text = wrapper.querySelector('.progress-text');
+
+        const safePercentage = Math.min(Math.max(percentage, 0), 100);
+
+        bar.style.width = safePercentage + '%';
+        text.textContent = Math.round(safePercentage) + '%';
+
+        if (safePercentage >= 100) {
+            bar.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
+        } else if (safePercentage < 10) {
+            bar.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+        } else {
+            bar.style.background = 'linear-gradient(90deg, #3b82f6, #60a5fa)';
+        }
+    }
+
+    async function uploadFile(file) {
+        // === 核心逻辑优化：动态判断总节点数 ===
+        const isPDF = file.name.toLowerCase().endsWith('.pdf');
+        // PDF 需要 9 步（含上传），MD 跳过 pdf_to_md 需要 8 步
+        const totalNodes = isPDF ? 8 : 7;
+
+        const id = 'file-' + Math.random().toString(36).substr(2, 8);
+        const html = `
+            <div class="file-item" id="${id}">
+                <div class="file-info">
+                    <div class="file-header">
+                        <span class="file-name">${file.name}</span>
+                        <span class="file-size">${(file.size / 1024).toFixed(2)} KB</span>
+                    </div>
+                    <div class="progress-wrapper">
+                        <div class="progress-bar-container">
+                            <div class="progress-bar"></div>
+                        </div>
+                        <div class="progress-text">0%</div>
+                    </div>
+                    <details class="log-details" open>
+                        <summary>准备上传...</summary>
+                        <ul class="log-list"></ul>
+                    </details>
+                </div>
+                <div class="status-badge status-uploading">上传中...</div>
+            </div>
+        `;
+        fileList.insertAdjacentHTML('afterbegin', html);
+
+        const itemEl = document.getElementById(id);
+        const statusBadge = itemEl.querySelector('.status-badge');
+        const progressWrapper = itemEl.querySelector('.progress-wrapper');
+        const logListEl = itemEl.querySelector('.log-list');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            progressWrapper.style.display = 'block';
+
+            // 使用动态的 totalNodes 计算基础上传进度
+            const uploadPercentage = (1 / totalNodes) * 100;
+            updateProgressUI(progressWrapper, Math.min(uploadPercentage, 10));
+
+            const initialLog = document.createElement('li');
+            initialLog.textContent = "开始上传文件...";
+            initialLog.className = "log-running";
+            logListEl.appendChild(initialLog);
+
+            const response = await fetch(`${API_BASE}/upload`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error('Upload failed');
+
+            const result = await response.json();
+            const taskId = result.task_id;
+
+            updateProgressUI(progressWrapper, uploadPercentage);
+            statusBadge.textContent = '处理中';
+            statusBadge.className = 'status-badge status-processing';
+
+            // 把专属的 totalNodes 传给轮询函数
+            pollStatus(taskId, itemEl, totalNodes);
+
+        } catch (error) {
+            console.error(error);
+            statusBadge.textContent = '上传失败';
+            statusBadge.className = 'status-badge status-error';
+            updateProgressUI(progressWrapper, 0);
+
+            const errLog = document.createElement('li');
+            errLog.textContent = "❌ 网络请求失败或服务器异常";
+            errLog.style.color = "#ef4444";
+            logListEl.appendChild(errLog);
+        }
+    }
+
+    function normalizeLogText(text) {
+        if (typeof text !== 'string') return String(text);
+        return text;
+    }
+
+    // 接收 totalNodes 参数计算最终百分比和渲染文案
+    function formatDuration(seconds) {
+        if (seconds < 60) {
+            return seconds.toFixed(1) + 's';
+        }
+        const mins = Math.floor(seconds / 60);
+        const secs = (seconds % 60).toFixed(0);
+        return `${mins}m${secs}s`;
+    }
+
+    function renderLogsAndCalculateProgress(itemEl, doneList, runningList, totalNodes, durations) {
+        const logSummary = itemEl.querySelector('.log-details summary');
+        const logListEl = itemEl.querySelector('.log-list');
+
+        const done = Array.isArray(doneList) ? doneList : [];
+        const running = Array.isArray(runningList) ? runningList : [];
+        const durationMap = durations || {};
+
+        // === 进度计算逻辑 ===
+        let currentPercentage = (done.length / totalNodes) * 100;
+
+        if (running.length > 0) {
+            currentPercentage += (0.5 / totalNodes) * 100;
+        }
+
+        if (currentPercentage >= 100) {
+            currentPercentage = 95;
+        }
+
+        // 计算总耗时
+        let totalDuration = 0;
+        for (const key in durationMap) {
+            totalDuration += durationMap[key];
+        }
+        const totalDurationText = totalDuration > 0 ? ` | 总耗时: ${formatDuration(totalDuration)}` : '';
+
+        // 更新日志文案
+        logSummary.textContent = `📋 运行日志 (已完成: ${done.length}, 进行中: ${running.length}, 共 ${totalNodes} 步${totalDurationText})`;
+
+        logListEl.innerHTML = '';
+
+        for (const item of done) {
+            if (item === 'upload_file') continue;
+
+            const li = document.createElement('li');
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = `${normalizeLogText(item)} 节点执行完成`;
+            li.appendChild(nameSpan);
+
+            // 添加耗时标签
+            if (durationMap[item] !== undefined) {
+                const durationSpan = document.createElement('span');
+                durationSpan.className = 'log-duration';
+                durationSpan.textContent = formatDuration(durationMap[item]);
+                li.appendChild(durationSpan);
+            }
+
+            li.className = 'log-done';
+            logListEl.appendChild(li);
+        }
+
+        for (const item of running) {
+            const li = document.createElement('li');
+            li.textContent = `正在处理 ${normalizeLogText(item)} 节点...`;
+            li.className = 'log-running';
+            logListEl.appendChild(li);
+        }
+
+        logListEl.scrollTop = logListEl.scrollHeight;
+
+        return currentPercentage;
+    }
+
+    function pollStatus(taskId, itemEl, totalNodes) {
+        const statusBadge = itemEl.querySelector('.status-badge');
+        const progressWrapper = itemEl.querySelector('.progress-wrapper');
+        const logDetails = itemEl.querySelector('.log-details');
+        let stopped = false;
+
+        const interval = setInterval(async () => {
+            if (stopped) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/status/${taskId}`);
+                if (!res.ok) throw new Error('Status request failed');
+
+                const data = await res.json();
+
+                if (stopped) return;
+
+                // 传入 totalNodes 继续计算
+                const calculatedPercentage = renderLogsAndCalculateProgress(itemEl, data.done_list, data.running_list, totalNodes, data.durations);
+
+                if (data.status === 'completed') {
+                    stopped = true;
+                    clearInterval(interval);
+                    statusBadge.textContent = '已完成';
+                    statusBadge.className = 'status-badge status-completed';
+                    updateProgressUI(progressWrapper, 100);
+
+                    setTimeout(() => {
+                        logDetails.open = false;
+                    }, 1000);
+
+                } else if (data.status === 'failed') {
+                    stopped = true;
+                    clearInterval(interval);
+                    statusBadge.textContent = '失败';
+                    statusBadge.className = 'status-badge status-error';
+
+                    const logListEl = itemEl.querySelector('.log-list');
+                    const errLog = document.createElement('li');
+                    errLog.textContent = "❌ 工作流执行失败中止";
+                    errLog.style.color = "#ef4444";
+                    logListEl.appendChild(errLog);
+
+                } else if (data.status === 'processing') {
+                    updateProgressUI(progressWrapper, calculatedPercentage);
+                }
+            } catch (e) {
+                console.error('Polling error', e);
+            }
+        }, 1500);
+    }
+</script>
+
+</body>
+</html>
